@@ -1,0 +1,2926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWARM — Autonomous Warehouse Robot Dashboard</title>
+  <style>
+    :root {
+      --bg-base: #0a0e17;
+      --bg-panel: #111827;
+      --bg-panel-hover: #162032;
+      --bg-surface: #151e2e;
+      --bg-input: #0d131f;
+      --border-subtle: #1e293b;
+      --border-focus: #334155;
+      --border-accent: #06b6d4;
+      
+      --accent-cyan: #06b6d4;
+      --accent-amber: #f59e0b;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --accent-purple: #a855f7;
+      --accent-lime: #a3e635;
+      --accent-slate: #64748b;
+
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #475569;
+
+      --state-idle: #64748b;
+      --state-topick: #06b6d4;
+      --state-todrop: #f59e0b;
+      --state-tocharge: #a3e635;
+      --state-charging: #10b981;
+      --state-dead: #ef4444;
+
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.6);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+      --shadow-glow-cyan: 0 0 15px rgba(6, 182, 212, 0.3);
+      --shadow-glow-rose: 0 0 15px rgba(244, 63, 94, 0.4);
+      --shadow-glow-amber: 0 0 15px rgba(245, 158, 11, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.4;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(10, 14, 23, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-subtle);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-focus);
+    }
+
+    /* Top Control Bar */
+    header.top-bar {
+      height: 56px;
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 50;
+      gap: 12px;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: 0.05em;
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-logo svg {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: var(--accent-cyan);
+      stroke-width: 2;
+      filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.6));
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-emerald);
+      transition: all 0.2s ease;
+    }
+
+    .status-pill.disconnected {
+      background: rgba(244, 63, 94, 0.1);
+      border-color: rgba(244, 63, 94, 0.3);
+      color: var(--accent-rose);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: currentColor;
+      box-shadow: 0 0 8px currentColor;
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .tick-display {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      padding: 4px 12px;
+      border-radius: 6px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.05em;
+    }
+
+    .tick-display span.label {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    /* Action Buttons in Top Bar */
+    .controls-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap;
+    }
+
+    .btn-group {
+      display: flex;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn.active {
+      color: #fff;
+      background: var(--border-subtle);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-primary {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+    }
+    .btn-primary:hover {
+      background: var(--bg-panel-hover);
+      border-color: var(--border-focus);
+    }
+
+    .btn-action {
+      font-weight: 600;
+      font-size: 12px;
+      border-radius: 6px;
+      padding: 5px 12px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .btn-action:active {
+      transform: scale(0.96);
+    }
+
+    .btn-danger {
+      background: rgba(244, 63, 94, 0.12);
+      border-color: rgba(244, 63, 94, 0.35);
+      color: #fb7185;
+    }
+    .btn-danger:hover {
+      background: rgba(244, 63, 94, 0.25);
+      border-color: var(--accent-rose);
+      color: #fff;
+      box-shadow: var(--shadow-glow-rose);
+    }
+
+    .btn-warning {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+    }
+    .btn-warning:hover {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: var(--accent-amber);
+      color: #fff;
+      box-shadow: var(--shadow-glow-amber);
+    }
+
+    .btn-chaos {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .btn-chaos:hover {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.5) 0%, rgba(168, 85, 247, 0.5) 100%);
+      border-color: #f87171;
+      color: #fff;
+      box-shadow: 0 0 18px rgba(239, 68, 68, 0.5);
+    }
+
+    .btn-toggle {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+    }
+    .btn-toggle.paused {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: var(--accent-amber);
+      color: #fef3c7;
+    }
+
+    .speed-group .btn.active {
+      background: var(--accent-cyan);
+      color: #042f2e;
+      font-weight: 700;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+    }
+
+    .top-right-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .icon-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .icon-btn:hover {
+      color: var(--text-main);
+      background: var(--bg-panel-hover);
+      border-color: var(--border-focus);
+    }
+    .icon-btn.active {
+      color: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+    }
+
+    /* Main Dashboard Layout */
+    .dashboard-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 390px;
+      gap: 10px;
+      padding: 10px;
+      height: calc(100vh - 56px);
+      overflow: hidden;
+    }
+
+    @media (max-width: 1400px) {
+      .dashboard-container {
+        grid-template-columns: 1fr 340px;
+      }
+    }
+
+    /* Left Section: Canvas & Lower Stats */
+    .left-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Canvas Card */
+    .canvas-card {
+      flex: 1;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+      box-shadow: var(--shadow-md);
+    }
+
+    .canvas-header {
+      padding: 8px 14px;
+      background: rgba(17, 24, 39, 0.95);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .view-tabs {
+      display: flex;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .view-tab {
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .view-tab:hover {
+      color: var(--text-main);
+    }
+    .view-tab.active {
+      background: var(--border-subtle);
+      color: #38bdf8;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .canvas-legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-color {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-color.shelf {
+      background: #273549;
+      border-radius: 2px;
+    }
+    .legend-color.charger {
+      background: var(--accent-lime);
+    }
+    .legend-color.dropoff {
+      background: var(--accent-emerald);
+      border-radius: 2px;
+    }
+    .legend-color.order {
+      background: var(--accent-amber);
+      transform: rotate(45deg);
+      border-radius: 1px;
+    }
+
+    .canvas-viewport {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(circle at 50% 50%, #0d1525 0%, #090d16 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    canvas.arena-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Split Screen Canvas Container */
+    .split-canvas-wrapper {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      gap: 2px;
+      background: var(--border-subtle);
+    }
+
+    .split-canvas-pane {
+      flex: 1;
+      position: relative;
+      background: #0a0e17;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .split-canvas-label {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid var(--border-subtle);
+      z-index: 5;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Floating Robot Canvas Tooltip */
+    .robot-hover-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border-focus);
+      border-radius: 8px;
+      padding: 8px 12px;
+      box-shadow: var(--shadow-lg), 0 0 15px rgba(6, 182, 212, 0.2);
+      font-size: 11px;
+      z-index: 100;
+      display: none;
+      backdrop-filter: blur(8px);
+      min-width: 150px;
+      transform: translate(-50%, -120%);
+    }
+
+    .tooltip-title {
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      color: #38bdf8;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    .tooltip-row span.val {
+      color: var(--text-main);
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    /* Lower Section: Metrics + Fleet */
+    .bottom-section {
+      height: 220px;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 1500px) {
+      .bottom-section {
+        grid-template-columns: 310px 1fr;
+        height: 210px;
+      }
+    }
+
+    .panel-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      background: rgba(17, 24, 39, 0.95);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .panel-title svg {
+      width: 14px;
+      height: 14px;
+      color: var(--accent-cyan);
+    }
+
+    .panel-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(6, 182, 212, 0.1);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+    }
+
+    /* Metrics Table */
+    .metrics-container {
+      flex: 1;
+      padding: 8px 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .metrics-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .metrics-table th {
+      text-align: right;
+      padding: 4px 6px;
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .metrics-table th:first-child {
+      text-align: left;
+    }
+
+    .metrics-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+      text-align: right;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .metrics-table td:first-child {
+      text-align: left;
+      font-family: var(--font-sans);
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .metrics-table tr.winner-swarm td.val-swarm {
+      color: var(--accent-emerald);
+      font-weight: 700;
+    }
+
+    .metrics-table tr.winner-central td.val-central {
+      color: var(--accent-emerald);
+      font-weight: 700;
+    }
+
+    .metrics-table tr.highlight td {
+      background: rgba(6, 182, 212, 0.04);
+    }
+
+    .dispatcher-indicator {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      font-family: var(--font-sans);
+    }
+    .dispatcher-up {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+    }
+    .dispatcher-down {
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--accent-rose);
+      animation: pulse 1s infinite;
+    }
+    .dispatcher-mesh {
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    /* Robot Fleet Status Cards */
+    .fleet-grid {
+      flex: 1;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 6px;
+      overflow-y: auto;
+    }
+
+    .robot-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .robot-card:hover {
+      border-color: var(--border-focus);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .robot-card.carrying {
+      border-color: rgba(245, 158, 11, 0.4);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(21, 30, 46, 1) 100%);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
+    }
+
+    .robot-card.dead {
+      border-color: rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.05);
+      opacity: 0.65;
+    }
+
+    .robot-card.dead::after {
+      content: 'OFFLINE';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-12deg);
+      font-size: 11px;
+      font-weight: 800;
+      color: #ef4444;
+      background: rgba(10, 14, 23, 0.9);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid #ef4444;
+      pointer-events: none;
+      letter-spacing: 0.08em;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .card-robot-id {
+      font-weight: 700;
+      font-size: 13px;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .card-robot-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+    }
+    .robot-card.dead .card-robot-dot {
+      background: var(--accent-rose);
+    }
+
+    .state-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .state-badge.IDLE { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
+    .state-badge.TO_PICK { background: rgba(6, 182, 212, 0.2); color: #38bdf8; }
+    .state-badge.TO_DROP { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .state-badge.TO_CHARGE { background: rgba(163, 230, 53, 0.2); color: #bef264; }
+    .state-badge.CHARGING { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .state-badge.DEAD { background: rgba(239, 68, 68, 0.25); color: #f87171; }
+
+    .battery-track {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 4px 0;
+    }
+
+    .battery-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .card-details {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .card-details span.order-id {
+      color: #fbbf24;
+      font-weight: 600;
+    }
+
+    .card-actions {
+      display: none;
+      position: absolute;
+      top: 4px;
+      right: 4px;
+    }
+    .robot-card:hover .card-actions {
+      display: flex;
+    }
+    .card-kill-btn {
+      background: rgba(244, 63, 94, 0.2);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      color: #f87171;
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .card-kill-btn:hover {
+      background: var(--accent-rose);
+      color: #fff;
+    }
+
+    /* Right Section: Agent Communications & Chat */
+    .right-section {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      height: 100%;
+    }
+
+    .comms-header {
+      padding: 10px 14px;
+      background: rgba(17, 24, 39, 0.98);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .comms-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .comms-title {
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      letter-spacing: 0.04em;
+    }
+
+    .comms-count {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      padding: 2px 7px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .channel-pills {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .channel-pill {
+      border: none;
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid transparent;
+    }
+
+    .channel-pill:hover {
+      color: var(--text-main);
+      background: var(--bg-panel-hover);
+    }
+
+    .channel-pill.active {
+      background: rgba(6, 182, 212, 0.15);
+      border-color: rgba(6, 182, 212, 0.4);
+      color: #38bdf8;
+    }
+
+    /* Message Feed Area */
+    .feed-container {
+      flex: 1;
+      padding: 10px 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+    }
+
+    .feed-message {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 7px 10px;
+      animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: border-color 0.15s ease;
+    }
+
+    .feed-message:hover {
+      border-color: var(--border-focus);
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .msg-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .msg-badge-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .channel-tag {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .channel-tag.orders { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+    .channel-tag.bids { background: rgba(6, 182, 212, 0.2); color: #06b6d4; }
+    .channel-tag.fleet { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+    .channel-tag.chat { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+    .channel-tag.system { background: rgba(244, 63, 94, 0.2); color: #f43f5e; }
+
+    .msg-speaker {
+      font-size: 11px;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+
+    .msg-speaker.human {
+      color: #38bdf8;
+    }
+    .msg-speaker.dispatcher {
+      color: #c084fc;
+    }
+    .msg-speaker.orchestrator {
+      color: #a855f7;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+    .msg-speaker.system {
+      color: #f87171;
+    }
+
+    .msg-tick {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .msg-content {
+      font-size: 12px;
+      color: var(--text-main);
+      word-break: break-word;
+      line-height: 1.35;
+    }
+
+    .msg-content .highlight-order {
+      color: #fbbf24;
+      font-weight: 600;
+    }
+    .msg-content .highlight-robot {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .msg-content .highlight-cost {
+      color: #a3e635;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    /* Scroll to bottom button when scrolled up */
+    .jump-bottom-btn {
+      position: absolute;
+      bottom: 60px;
+      right: 20px;
+      background: var(--border-focus);
+      color: #fff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 5px;
+      box-shadow: var(--shadow-md);
+      z-index: 20;
+    }
+    .jump-bottom-btn:hover {
+      background: var(--accent-cyan);
+      color: #042f2e;
+    }
+
+    /* Quick Suggestion Chips */
+    .quick-chips {
+      padding: 4px 10px;
+      background: rgba(13, 19, 31, 0.7);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+
+    .chip-btn {
+      font-size: 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      border-radius: 12px;
+      padding: 3px 9px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .chip-btn:hover {
+      color: var(--text-main);
+      border-color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.1);
+    }
+
+    /* Chat Input Bar */
+    .chat-input-container {
+      padding: 10px;
+      background: rgba(17, 24, 39, 0.98);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      padding: 8px 12px;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+
+    .chat-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+    }
+
+    .chat-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .chat-send-btn {
+      background: var(--accent-cyan);
+      border: none;
+      border-radius: 6px;
+      color: #042f2e;
+      font-weight: 700;
+      padding: 8px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .chat-send-btn:hover {
+      background: #38bdf8;
+      box-shadow: var(--shadow-glow-cyan);
+    }
+
+    .chat-send-btn:active {
+      transform: scale(0.96);
+    }
+
+    /* Notification Banner */
+    .banner-alert {
+      position: fixed;
+      top: 64px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid var(--accent-rose);
+      color: #fecdd3;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: var(--shadow-lg), var(--shadow-glow-rose);
+      z-index: 1000;
+      backdrop-filter: blur(8px);
+      transition: opacity 0.3s, transform 0.3s;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .banner-alert.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    /* Keyboard Shortcuts Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      width: 440px;
+      max-width: 90vw;
+      padding: 20px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .shortcut-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .shortcut-key {
+      font-family: var(--font-mono);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-focus);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Control Bar -->
+  <header class="top-bar">
+    <div class="brand-section">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24">
+          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        <span>SWARM</span>
+      </div>
+
+      <div class="status-pill" id="connPill">
+        <div class="status-dot"></div>
+        <span id="connText">Connecting...</span>
+      </div>
+
+      <div class="tick-display">
+        <span class="label">Tick</span>
+        <span id="tickVal">0</span>
+      </div>
+    </div>
+
+    <!-- Center Simulation Controls -->
+    <div class="controls-center">
+      <!-- Speed Buttons -->
+      <div class="btn-group speed-group">
+        <button class="btn" data-speed="0.5" onclick="setSpeed(0.5)">0.5x</button>
+        <button class="btn active" data-speed="1.0" onclick="setSpeed(1.0)">1x</button>
+        <button class="btn" data-speed="3.0" onclick="setSpeed(3.0)">3x</button>
+        <button class="btn" data-speed="5.0" onclick="setSpeed(5.0)">5x</button>
+        <button class="btn" data-speed="10.0" onclick="setSpeed(10.0)">10x</button>
+      </div>
+
+      <!-- Pause / Resume Toggle -->
+      <button class="btn-action btn-toggle" id="btnPause" onclick="togglePause()">
+        <span id="pauseIcon">⏸</span>
+        <span id="pauseLabel">Pause</span>
+      </button>
+
+      <!-- Action Buttons -->
+      <button class="btn-action btn-danger" onclick="sendCmd({cmd: 'kill'})" title="Kill a live robot carrying an active delivery">
+        <span>⚡ Kill Robot</span>
+      </button>
+
+      <button class="btn-action btn-danger" onclick="sendCmd({cmd: 'kill_dispatcher'})" title="Simulate central dispatcher failure (15s failover)">
+        <span>💀 Kill Dispatcher</span>
+      </button>
+
+      <button class="btn-action btn-warning" onclick="sendCmd({cmd: 'rush'})" title="Inject an urgent priority package">
+        <span>🚨 Rush Order</span>
+      </button>
+
+      <button class="btn-action btn-chaos" onclick="sendCmd({cmd: 'chaos'})" title="Kill dispatcher + 2 live robots simultaneously">
+        <span>🔥 CHAOS</span>
+      </button>
+
+      <button class="btn-action btn-primary" onclick="sendCmd({cmd: 'reset', seed: 7})" title="Reset simulation to initial seed">
+        <span>↺ Reset</span>
+      </button>
+    </div>
+
+    <!-- Top Right Utility Buttons -->
+    <div class="top-right-tools">
+      <button class="icon-btn" id="audioBtn" onclick="toggleAudio()" title="Toggle Synthesized Audio Feedback">
+        <span id="audioIcon">🔇</span>
+      </button>
+      <button class="icon-btn" onclick="toggleHelpModal()" title="Keyboard Shortcuts">
+        <span>⌨️</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main App Content -->
+  <div class="dashboard-container">
+    
+    <!-- Left Section: Canvas + Lower Panels -->
+    <div class="left-section">
+      
+      <!-- Canvas Card -->
+      <div class="canvas-card">
+        
+        <div class="canvas-header">
+          <!-- View Tabs -->
+          <div class="view-tabs">
+            <button class="view-tab active" id="tabSwarm" onclick="switchView('swarm')">
+              <span>⬡ Swarm (P2P Auction)</span>
+            </button>
+            <button class="view-tab" id="tabCentral" onclick="switchView('central')">
+              <span>🏢 Central Baseline</span>
+            </button>
+            <button class="view-tab" id="tabSplit" onclick="switchView('split')">
+              <span>⧉ Split Arena</span>
+            </button>
+          </div>
+
+          <!-- Canvas Legend -->
+          <div class="canvas-legend">
+            <div class="legend-item"><div class="legend-color shelf"></div> Shelves</div>
+            <div class="legend-item"><div class="legend-color charger"></div> Chargers</div>
+            <div class="legend-item"><div class="legend-color dropoff"></div> Drop-off</div>
+            <div class="legend-item"><div class="legend-color order"></div> Order Pickup</div>
+          </div>
+        </div>
+
+        <!-- Canvas Viewport -->
+        <div class="canvas-viewport" id="viewport">
+          <!-- Single View Canvas -->
+          <canvas id="mainCanvas" class="arena-canvas"></canvas>
+
+          <!-- Split Screen View Panes (hidden by default) -->
+          <div class="split-canvas-wrapper" id="splitWrapper" style="display: none;">
+            <div class="split-canvas-pane">
+              <div class="split-canvas-label" style="border-color: rgba(168, 85, 247, 0.4); color: #c084fc;">
+                🏢 CENTRAL DISPATCHER
+              </div>
+              <canvas id="canvasCentral" class="arena-canvas"></canvas>
+            </div>
+            <div class="split-canvas-pane">
+              <div class="split-canvas-label" style="border-color: rgba(6, 182, 212, 0.4); color: #38bdf8;">
+                ⬡ SWARM P2P AUCTION
+              </div>
+              <canvas id="canvasSwarm" class="arena-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Floating Robot Hover HUD Tooltip -->
+          <div class="robot-hover-tooltip" id="robotTooltip">
+            <div class="tooltip-title">
+              <span id="ttId">r1</span>
+              <span class="state-badge" id="ttState">IDLE</span>
+            </div>
+            <div class="tooltip-row"><span>Position</span><span class="val" id="ttPos">(0, 0)</span></div>
+            <div class="tooltip-row"><span>Battery</span><span class="val" id="ttBattery">100%</span></div>
+            <div class="tooltip-row"><span>Order</span><span class="val" id="ttOrder">None</span></div>
+            <div class="tooltip-row"><span>Path Steps</span><span class="val" id="ttPath">0</span></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Lower Panels: Metrics Comparison + Robot Fleet Status -->
+      <div class="bottom-section">
+        
+        <!-- Metrics Comparison Panel -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+              <span>Metrics Comparison</span>
+            </div>
+            <div class="panel-badge" id="advantageBadge">Swarm Advantage</div>
+          </div>
+
+          <div class="metrics-container">
+            <table class="metrics-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Central</th>
+                  <th>Swarm</th>
+                </tr>
+              </thead>
+              <tbody id="metricsBody">
+                <tr id="row-delivered">
+                  <td>Delivered</td>
+                  <td class="val-central">0</td>
+                  <td class="val-swarm">0</td>
+                </tr>
+                <tr id="row-avg-time">
+                  <td>Avg Order Time</td>
+                  <td class="val-central">0.0s</td>
+                  <td class="val-swarm">0.0s</td>
+                </tr>
+                <tr id="row-backlog">
+                  <td>Backlog</td>
+                  <td class="val-central">0</td>
+                  <td class="val-swarm">0</td>
+                </tr>
+                <tr id="row-oldest">
+                  <td>Oldest Wait</td>
+                  <td class="val-central">0.0s</td>
+                  <td class="val-swarm">0.0s</td>
+                </tr>
+                <tr id="row-recovery">
+                  <td>Recovery Time</td>
+                  <td class="val-central">0.0s</td>
+                  <td class="val-swarm">0.0s</td>
+                </tr>
+                <tr id="row-distance">
+                  <td>Total Distance</td>
+                  <td class="val-central">0</td>
+                  <td class="val-swarm">0</td>
+                </tr>
+                <tr id="row-idle">
+                  <td>Idle Ticks</td>
+                  <td class="val-central">0</td>
+                  <td class="val-swarm">0</td>
+                </tr>
+                <tr id="row-dispatcher">
+                  <td>Dispatcher</td>
+                  <td class="val-central"><span class="dispatcher-indicator dispatcher-up">UP</span></td>
+                  <td class="val-swarm"><span class="dispatcher-indicator dispatcher-mesh">P2P MESH</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Robot Fleet Status Cards -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="10" rx="2" />
+                <circle cx="12" cy="5" r="2" />
+                <path d="M12 7v4" />
+                <line x1="8" y1="16" x2="8" y2="16" />
+                <line x1="16" y1="16" x2="16" y2="16" />
+              </svg>
+              <span>Robot Fleet Status</span>
+            </div>
+            <div class="panel-badge" id="activeFleetMode">Mode: Swarm</div>
+          </div>
+
+          <div class="fleet-grid" id="fleetGrid">
+            <!-- 8 Robot Cards dynamically rendered & updated -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Right Section: Agent Communications & Chat -->
+    <div class="right-section">
+      
+      <div class="comms-header">
+        <div class="comms-top-bar">
+          <div class="comms-title">
+            <span>💬 Agent Communications</span>
+          </div>
+          <span class="comms-count" id="msgCountBadge">0 msgs</span>
+        </div>
+
+        <!-- Channel Filter Pills -->
+        <div class="channel-pills">
+          <button class="channel-pill active" onclick="setChannelFilter('all')">#all</button>
+          <button class="channel-pill" onclick="setChannelFilter('orders')">#orders</button>
+          <button class="channel-pill" onclick="setChannelFilter('bids')">#bids</button>
+          <button class="channel-pill" onclick="setChannelFilter('fleet')">#fleet</button>
+          <button class="channel-pill" onclick="setChannelFilter('chat')">#chat</button>
+          <button class="channel-pill" onclick="setChannelFilter('system')">#system</button>
+        </div>
+      </div>
+
+      <!-- Scrollable Message Feed -->
+      <div class="feed-container" id="feedContainer">
+        <!-- Messages appended dynamically -->
+      </div>
+
+      <!-- Jump to latest button -->
+      <button class="jump-bottom-btn" id="jumpBottomBtn" onclick="scrollToBottom()">
+        <span>↓ New messages</span>
+      </button>
+
+      <!-- Quick Directive Suggestion Chips -->
+      <div class="quick-chips">
+        <button class="chip-btn" onclick="sendQuickChat('What is the current fleet status?')">Status?</button>
+        <button class="chip-btn" onclick="sendQuickChat('Prioritize urgent orders!')">Prioritize</button>
+        <button class="chip-btn" onclick="sendQuickChat('Any bottlenecks detected?')">Bottlenecks?</button>
+        <button class="chip-btn" onclick="sendQuickChat('Check charger queues.')">Chargers?</button>
+      </div>
+
+      <!-- Human Chat Input -->
+      <form class="chat-input-container" onsubmit="handleChatSubmit(event)">
+        <input 
+          type="text" 
+          id="chatInput" 
+          class="chat-input" 
+          placeholder='Type a task, e.g. "pickup (5,7) drop (22,8)" or a directive...' 
+          autocomplete="off"
+        />
+        <button type="submit" class="chat-send-btn">
+          <span>Send</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </form>
+
+    </div>
+
+  </div>
+
+  <!-- Temporary Banner Alert for Faults/Events -->
+  <div class="banner-alert" id="bannerAlert">
+    <span id="bannerIcon">💀</span>
+    <span id="bannerText">Fault injected</span>
+  </div>
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div class="modal-backdrop" id="helpModal" onclick="toggleHelpModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-title">
+        <span>Keyboard Shortcuts</span>
+        <button class="icon-btn" onclick="toggleHelpModal()">✕</button>
+      </div>
+      <div class="shortcut-row"><span>Pause / Resume</span><span class="shortcut-key">Space</span></div>
+      <div class="shortcut-row"><span>Kill Robot</span><span class="shortcut-key">K</span></div>
+      <div class="shortcut-row"><span>Kill Dispatcher</span><span class="shortcut-key">D</span></div>
+      <div class="shortcut-row"><span>Rush Order</span><span class="shortcut-key">R</span></div>
+      <div class="shortcut-row"><span>Trigger Chaos Mode</span><span class="shortcut-key">C</span></div>
+      <div class="shortcut-row"><span>Reset Arena</span><span class="shortcut-key">Backspace</span></div>
+      <div class="shortcut-row"><span>Toggle Audio</span><span class="shortcut-key">M</span></div>
+      <div class="shortcut-row"><span>Switch View Mode</span><span class="shortcut-key">1 / 2 / 3</span></div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * SWARM Autonomous Warehouse Robot Dashboard
+     * Production-Quality Real-Time Client with 60FPS Lerp Interpolation
+     */
+
+    // --- Configuration & Constants ---
+    const WS_URL = "ws://localhost:8765";
+    const GRID_W = 24;
+    const GRID_H = 14;
+    const DEFAULT_TICK_SECONDS = 0.2;
+
+    // Static Warehouse Structures
+    const CHARGERS = [
+      [0, 2], [0, 5], [0, 8], [0, 11],
+      [1, 2], [1, 5], [1, 8], [1, 11]
+    ];
+    const DROP_STATIONS = [
+      [22, 2], [22, 5], [22, 8], [22, 11]
+    ];
+
+    function isShelf(x, y) {
+      return (y === 3 || y === 4 || y === 8 || y === 9) &&
+             (x >= 3 && x <= 20) &&
+             ((x - 3) % 4 !== 3);
+    }
+
+    // State Colors
+    const COLORS = {
+      IDLE: '#64748b',
+      TO_PICK: '#06b6d4',
+      TO_DROP: '#f59e0b',
+      TO_CHARGE: '#a3e635',
+      CHARGING: '#10b981',
+      DEAD: '#ef4444'
+    };
+
+    // --- Application State ---
+    const appState = {
+      ws: null,
+      connected: false,
+      reconnectTimer: null,
+      paused: false,
+      speed: 1.0,
+      currentTick: 0,
+      tickSeconds: DEFAULT_TICK_SECONDS,
+      currentView: 'swarm', // 'swarm', 'central', 'split'
+      activeChannel: 'all',
+      audioEnabled: false,
+
+      // Live World Data
+      worlds: {
+        swarm: null,
+        central: null
+      },
+
+      // Robot Smooth Interpolation Store: { [world]: { [robotId]: { prevX, prevY, currX, currY, lastTickTime } } }
+      robotMotion: {
+        swarm: {},
+        central: {}
+      },
+
+      // Messages deduplication & list
+      messages: [],
+      seenMsgKeys: new Set(),
+      isScrolledUp: false,
+
+      // Interaction
+      hoveredRobot: null,
+      selectedRobot: null,
+      mousePos: { x: -1, y: -1 }
+    };
+
+    // --- Audio Feedback Engine (Web Audio API Synthesizer) ---
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          audioCtx = new AudioContext();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      if (!appState.audioEnabled || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'order') {
+          // Cheerful high blip
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'award') {
+          // Quick tech double-tone
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(659, now);
+          osc.frequency.setValueAtTime(987, now + 0.06);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+          osc.start(now);
+          osc.stop(now + 0.16);
+        } else if (type === 'delivered') {
+          // Success chord
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523, now);
+          osc.frequency.exponentialRampToValueAtTime(1046, now + 0.2);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === 'fault') {
+          // Low warning buzz
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.linearRampToValueAtTime(110, now + 0.25);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.start(now);
+          osc.stop(now + 0.28);
+        } else if (type === 'chat') {
+          // Soft pop
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(700, now);
+          osc.frequency.exponentialRampToValueAtTime(400, now + 0.08);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        }
+      } catch (e) {
+        // Audio error silent fallback
+      }
+    }
+
+    function toggleAudio() {
+      appState.audioEnabled = !appState.audioEnabled;
+      if (appState.audioEnabled) {
+        initAudio();
+        document.getElementById('audioIcon').textContent = '🔊';
+        document.getElementById('audioBtn').classList.add('active');
+        playSound('order');
+      } else {
+        document.getElementById('audioIcon').textContent = '🔇';
+        document.getElementById('audioBtn').classList.remove('active');
+      }
+    }
+
+    // --- Banner Notification ---
+    let bannerTimeout = null;
+    function showBanner(text, icon = '💀') {
+      const el = document.getElementById('bannerAlert');
+      document.getElementById('bannerText').textContent = text;
+      document.getElementById('bannerIcon').textContent = icon;
+      el.classList.add('visible');
+      clearTimeout(bannerTimeout);
+      bannerTimeout = setTimeout(() => {
+        el.classList.remove('visible');
+      }, 3200);
+    }
+
+    // --- WebSocket Connection & Data Handling ---
+    function connectWebSocket() {
+      const connPill = document.getElementById('connPill');
+      const connText = document.getElementById('connText');
+
+      try {
+        appState.ws = new WebSocket(WS_URL);
+      } catch (err) {
+        console.warn("WebSocket creation error:", err);
+      }
+
+      if (!appState.ws) return;
+
+      appState.ws.onopen = () => {
+        appState.connected = true;
+        connPill.classList.remove('disconnected');
+        connText.textContent = 'Connected (5 Hz)';
+        clearTimeout(appState.reconnectTimer);
+        // Halt mock simulation if active
+        stopMockSimulation();
+      };
+
+      appState.ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleServerMessage(data);
+        } catch (e) {
+          console.error("Failed to parse WebSocket JSON:", e);
+        }
+      };
+
+      appState.ws.onclose = () => {
+        appState.connected = false;
+        connPill.classList.add('disconnected');
+        connText.textContent = 'Reconnecting...';
+        // Auto-reconnect after 2 seconds
+        clearTimeout(appState.reconnectTimer);
+        appState.reconnectTimer = setTimeout(connectWebSocket, 2000);
+        // Start mock simulation if disconnected so UI stays active for demo
+        startMockSimulation();
+      };
+
+      appState.ws.onerror = (err) => {
+        appState.connected = false;
+        connPill.classList.add('disconnected');
+        connText.textContent = 'Disconnected';
+      };
+    }
+
+    function sendCmd(cmdObj) {
+      if (appState.connected && appState.ws && appState.ws.readyState === WebSocket.OPEN) {
+        appState.ws.send(JSON.stringify(cmdObj));
+      } else {
+        // Fallback for mock simulation mode
+        handleMockCommand(cmdObj);
+      }
+    }
+
+    function handleServerMessage(data) {
+      if (!data) return;
+
+      if (data.type === 'hello') {
+        appState.tickSeconds = data.tick_seconds || DEFAULT_TICK_SECONDS;
+      } else if (data.type === 'state') {
+        appState.currentTick = data.tick || 0;
+        appState.paused = !!data.paused;
+        appState.speed = data.speed || 1.0;
+
+        // Update Top Bar UI
+        document.getElementById('tickVal').textContent = appState.currentTick;
+        updateSpeedUI(appState.speed);
+        updatePauseUI(appState.paused);
+
+        const now = performance.now();
+
+        // Process Swarm snapshot
+        if (data.swarm) {
+          appState.worlds.swarm = data.swarm;
+          updateRobotMotion('swarm', data.swarm.robots, now);
+          processFeed(data.swarm.feed, 'swarm');
+        }
+
+        // Process Central snapshot
+        if (data.central) {
+          appState.worlds.central = data.central;
+          updateRobotMotion('central', data.central.robots, now);
+          if (appState.currentView === 'central') {
+            processFeed(data.central.feed, 'central');
+          }
+        }
+
+        // Update Bottom Panels
+        updateMetricsUI();
+        updateFleetGridUI();
+      } else if (data.type === 'ack') {
+        if (data.cmd === 'kill' && data.ok) {
+          showBanner(`Robot ${data.robot} decommissioned`, '💀');
+          playSound('fault');
+        } else if (data.cmd === 'kill_dispatcher' && data.ok) {
+          showBanner(`Central Dispatcher Failure Injected!`, '⚡');
+          playSound('fault');
+        } else if (data.cmd === 'chaos' && data.ok) {
+          showBanner(`CHAOS: Dispatcher & robots killed!`, '🔥');
+          playSound('fault');
+        }
+      }
+    }
+
+    // Update Lerp Coordinates for 60fps smoothing
+    function updateRobotMotion(mode, robots, timestamp) {
+      if (!robots) return;
+      const motion = appState.robotMotion[mode];
+
+      robots.forEach(r => {
+        if (!motion[r.id]) {
+          motion[r.id] = {
+            prevX: r.x,
+            prevY: r.y,
+            currX: r.x,
+            currY: r.y,
+            lastTickTime: timestamp
+          };
+        } else {
+          const m = motion[r.id];
+          m.prevX = m.currX;
+          m.prevY = m.currY;
+          m.currX = r.x;
+          m.currY = r.y;
+          m.lastTickTime = timestamp;
+        }
+      });
+    }
+
+    // --- Agent Feed & Communications ---
+    function processFeed(feedItems, sourceMode) {
+      if (!feedItems || !Array.isArray(feedItems)) return;
+
+      feedItems.forEach(item => {
+        // Deduplication key
+        const key = `${item.tick}_${item.t}_${item.order || ''}_${item.robot || item.target || ''}_${item.text || ''}`;
+        if (appState.seenMsgKeys.has(key)) return;
+        appState.seenMsgKeys.add(key);
+
+        const parsedMsg = formatFeedMessage(item, sourceMode);
+        if (parsedMsg) {
+          appState.messages.push(parsedMsg);
+          // Limit memory to 300 messages
+          if (appState.messages.length > 300) {
+            appState.messages.shift();
+          }
+          renderMessage(parsedMsg);
+
+          // Audio triggers
+          if (item.t === 'ORDER_POSTED') playSound('order');
+          else if (item.t === 'AWARD') playSound('award');
+          else if (item.t === 'DELIVERED') playSound('delivered');
+          else if (item.t === 'FAULT_INJECTED' || item.t === 'TASK_ORPHANED') playSound('fault');
+          else if (item.t === 'ROBOT_CHAT') playSound('chat');
+        }
+      });
+
+      document.getElementById('msgCountBadge').textContent = `${appState.messages.length} msgs`;
+    }
+
+    function formatFeedMessage(item, mode) {
+      const tick = item.tick !== undefined ? item.tick : appState.currentTick;
+      let channel = 'system';
+      let speaker = 'System';
+      let speakerClass = 'system';
+      let contentHtml = '';
+
+      switch (item.t) {
+        case 'ORDER_POSTED':
+          channel = 'orders';
+          speaker = mode === 'swarm' ? 'Orchestrator' : 'Dispatcher';
+          speakerClass = mode === 'swarm' ? 'orchestrator' : 'dispatcher';
+          if (item.pickup_b) {
+            contentHtml = `📦 <span style="color:#a855f7;font-weight:700;">Dual Assembly</span> Order <span class="highlight-order">#${item.order}</span>: Part A at (${item.pickup?.[0]}, ${item.pickup?.[1]}) + Part B at (${item.pickup_b?.[0]}, ${item.pickup_b?.[1]}) ➔ Station (${item.dropoff?.[0]}, ${item.dropoff?.[1]})${item.priority ? ' <span style="color:#f43f5e;font-weight:700;">[RUSH]</span>' : ''}`;
+          } else {
+            contentHtml = `📦 New order <span class="highlight-order">#${item.order}</span> posted: (${item.pickup?.[0]}, ${item.pickup?.[1]}) ➔ (${item.dropoff?.[0]}, ${item.dropoff?.[1]})${item.priority ? ' <span style="color:#f43f5e;font-weight:700;">[RUSH]</span>' : ''}`;
+          }
+          break;
+
+        case 'BID':
+        case 'AGENT_BID':
+          channel = 'bids';
+          speaker = item.robot;
+          speakerClass = 'robot';
+          contentHtml = `💰 Placed bid on <span class="highlight-order">#${item.order}${item.part ? ` Part ${item.part}` : ''}</span> with cost <span class="highlight-cost">${item.cost !== undefined ? Number(item.cost).toFixed(1) : ''}</span>`;
+          break;
+
+        case 'AWARD':
+          channel = 'bids';
+          speaker = 'Orchestrator';
+          speakerClass = 'orchestrator';
+          contentHtml = `🏆 Awarded <span class="highlight-order">#${item.order}${item.part ? ` Part ${item.part}` : ''}</span> to <span class="highlight-robot">${item.robot}</span> (cost: <span class="highlight-cost">${item.cost !== undefined ? Number(item.cost).toFixed(1) : ''}</span>)${item.source === 'agent' ? ' <span style="color:#a855f7;">[Relay Agent]</span>' : ''}`;
+          break;
+
+        case 'PART_DELIVERED':
+          channel = 'fleet';
+          speaker = item.robot;
+          speakerClass = 'robot';
+          contentHtml = `📦 Delivered Part ${item.part || 'A'} for order <span class="highlight-order">#${item.order}</span> at station!`;
+          break;
+
+        case 'DELIVERED':
+          channel = 'fleet';
+          speaker = item.robot;
+          speakerClass = 'robot';
+          if (item.team && Array.isArray(item.team)) {
+            contentHtml = `🎉 Assembled & fulfilled Order <span class="highlight-order">#${item.order}</span>! 🤝 Team: <span class="highlight-robot">${item.team.join(' + ')}</span>`;
+          } else {
+            contentHtml = `✅ Delivered package for order <span class="highlight-order">#${item.order}</span> at drop-off station!`;
+          }
+          break;
+
+        case 'TASK_ORPHANED':
+          channel = 'system';
+          speaker = 'Peer Watchdog';
+          speakerClass = 'system';
+          contentHtml = `⚠️ Order <span class="highlight-order">#${item.order}${item.part ? ` Part ${item.part}` : ''}</span> orphaned by <span class="highlight-robot">${item.lastRobot}</span>! Re-auctioning to fleet immediately.`;
+          break;
+
+        case 'FAULT_INJECTED':
+          channel = 'system';
+          speaker = 'Sim Chaos';
+          speakerClass = 'system';
+          if (item.robot) {
+            contentHtml = `💀 Fault injected: Robot <span class="highlight-robot">${item.robot}</span> went offline!`;
+          } else {
+            contentHtml = `💀 Fault injected: Central Dispatcher knocked down!`;
+          }
+          break;
+
+        case 'DISPATCHER_RESTORED':
+          channel = 'system';
+          speaker = 'System Recovery';
+          speakerClass = 'system';
+          contentHtml = `🔄 Central dispatcher reboot completed and restored online.`;
+          break;
+
+        case 'ASSIGN':
+          channel = 'orders';
+          speaker = 'Dispatcher';
+          speakerClass = 'dispatcher';
+          contentHtml = `📋 Assigned order <span class="highlight-order">#${item.order}</span> directly to <span class="highlight-robot">${item.robot}</span> (sequential dual-pickup)`;
+          break;
+
+        case 'ROBOT_CHAT':
+          channel = 'chat';
+          speaker = item.robot || 'r?';
+          speakerClass = item.robot === 'human' ? 'human' : (item.robot === 'Orchestrator' ? 'orchestrator' : 'robot');
+          contentHtml = `💬 "${escapeHtml(item.text)}"`;
+          break;
+
+        default:
+          contentHtml = escapeHtml(JSON.stringify(item));
+      }
+
+      return {
+        id: `${tick}_${Math.random()}`,
+        tick,
+        channel,
+        speaker,
+        speakerClass,
+        contentHtml
+      };
+    }
+
+    function renderMessage(msg) {
+      const container = document.getElementById('feedContainer');
+      const isVisible = appState.activeChannel === 'all' || appState.activeChannel === msg.channel;
+
+      const msgEl = document.createElement('div');
+      msgEl.className = 'feed-message';
+      msgEl.dataset.channel = msg.channel;
+      if (!isVisible) msgEl.style.display = 'none';
+
+      msgEl.innerHTML = `
+        <div class="msg-header">
+          <div class="msg-badge-group">
+            <span class="channel-tag ${msg.channel}">#${msg.channel}</span>
+            <span class="msg-speaker ${msg.speakerClass}">${msg.speaker}</span>
+          </div>
+          <span class="msg-tick">T+${msg.tick}</span>
+        </div>
+        <div class="msg-content">${msg.contentHtml}</div>
+      `;
+
+      container.appendChild(msgEl);
+
+      // Auto scroll if user is not viewing older messages
+      if (!appState.isScrolledUp) {
+        container.scrollTop = container.scrollHeight;
+      } else {
+        document.getElementById('jumpBottomBtn').style.display = 'flex';
+      }
+    }
+
+    function setChannelFilter(channel) {
+      appState.activeChannel = channel;
+      document.querySelectorAll('.channel-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.includes(channel));
+      });
+
+      const container = document.getElementById('feedContainer');
+      const messages = container.querySelectorAll('.feed-message');
+      messages.forEach(msg => {
+        if (channel === 'all' || msg.dataset.channel === channel) {
+          msg.style.display = 'flex';
+        } else {
+          msg.style.display = 'none';
+        }
+      });
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function scrollToBottom() {
+      const container = document.getElementById('feedContainer');
+      container.scrollTop = container.scrollHeight;
+      appState.isScrolledUp = false;
+      document.getElementById('jumpBottomBtn').style.display = 'none';
+    }
+
+    document.getElementById('feedContainer').addEventListener('scroll', (e) => {
+      const el = e.target;
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      appState.isScrolledUp = distanceFromBottom > 60;
+      document.getElementById('jumpBottomBtn').style.display = appState.isScrolledUp ? 'flex' : 'none';
+    });
+
+    function handleChatSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      // Two coordinates mean a new task (pickup, then drop-off). Three mean a dual
+      // assembly, which needs two robots working the same order in parallel.
+      const cells = [...text.matchAll(/\(?\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\)?/g)];
+      if (cells.length >= 2) {
+        const dual = cells.length >= 3;
+        const at = (i) => [Number(cells[i][1]), Number(cells[i][2])];
+        sendCmd({
+          cmd: 'task',
+          pickup: at(0),
+          ...(dual ? { pickup_b: at(1) } : {}),
+          dropoff: at(dual ? 2 : 1),
+          priority: /rush|urgent|now/i.test(text)
+        });
+        const path = dual
+          ? `pick (${cells[0][1]},${cells[0][2]}) + (${cells[1][1]},${cells[1][2]}) -> drop (${cells[2][1]},${cells[2][2]})`
+          : `pick (${cells[0][1]},${cells[0][2]}) -> drop (${cells[1][1]},${cells[1][2]})`;
+        const taskMsg = {
+          id: `local_${Date.now()}`,
+          tick: appState.currentTick,
+          channel: 'orders',
+          speaker: 'human',
+          speakerClass: 'human',
+          contentHtml: `\ud83d\udce6 New task from operator: ${dual ? 'dual assembly ' : ''}${path}`
+        };
+        appState.messages.push(taskMsg);
+        renderMessage(taskMsg);
+        playSound('chat');
+        input.value = '';
+        return;
+      }
+
+      sendCmd({ cmd: 'chat', from: 'human', text: text });
+
+      // Optimistic instant feedback
+      const localMsg = {
+        id: `local_${Date.now()}`,
+        tick: appState.currentTick,
+        channel: 'chat',
+        speaker: 'human',
+        speakerClass: 'human',
+        contentHtml: `💬 "${escapeHtml(text)}"`
+      };
+      appState.messages.push(localMsg);
+      renderMessage(localMsg);
+      playSound('chat');
+
+      input.value = '';
+    }
+
+    function sendQuickChat(text) {
+      document.getElementById('chatInput').value = text;
+      handleChatSubmit(new Event('submit'));
+    }
+
+    // --- Bottom Panels: Metrics UI ---
+    function updateMetricsUI() {
+      const swarmData = appState.worlds.swarm?.metrics;
+      const centralData = appState.worlds.central?.metrics;
+      const swarmDisp = appState.worlds.swarm?.dispatcher;
+      const centralDisp = appState.worlds.central?.dispatcher;
+
+      if (!swarmData && !centralData) return;
+
+      const s = swarmData || {};
+      const c = centralData || {};
+
+      const setRow = (rowId, valC, valS, lowerIsBetter = false) => {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+        const tdC = row.querySelector('.val-central');
+        const tdS = row.querySelector('.val-swarm');
+
+        tdC.textContent = valC !== undefined ? valC : '-';
+        tdS.textContent = valS !== undefined ? valS : '-';
+
+        row.classList.remove('winner-swarm', 'winner-central');
+        const numC = parseFloat(valC);
+        const numS = parseFloat(valS);
+
+        if (!isNaN(numC) && !isNaN(numS) && numC !== numS) {
+          if (lowerIsBetter ? numS < numC : numS > numC) {
+            row.classList.add('winner-swarm');
+          } else {
+            row.classList.add('winner-central');
+          }
+        }
+      };
+
+      setRow('row-delivered', c.delivered, s.delivered, false);
+      setRow('row-avg-time', `${c.avg_order_time_s || 0}s`, `${s.avg_order_time_s || 0}s`, true);
+      setRow('row-backlog', c.backlog, s.backlog, true);
+      setRow('row-oldest', `${c.oldest_wait_s || 0}s`, `${s.oldest_wait_s || 0}s`, true);
+
+      // Recovery time array average
+      const avgRec = (arr) => arr && arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) + 's' : '0.0s';
+      setRow('row-recovery', avgRec(c.recovery_s), avgRec(s.recovery_s), true);
+
+      setRow('row-distance', c.distance, s.distance, false);
+      setRow('row-idle', c.idle_ticks, s.idle_ticks, true);
+
+      // Dispatcher Status
+      const dispRow = document.getElementById('row-dispatcher');
+      if (dispRow) {
+        const tdC = dispRow.querySelector('.val-central');
+        const tdS = dispRow.querySelector('.val-swarm');
+
+        const isCentralUp = centralDisp === 'up' || centralDisp === undefined;
+        tdC.innerHTML = `<span class="dispatcher-indicator ${isCentralUp ? 'dispatcher-up' : 'dispatcher-down'}">${isCentralUp ? 'UP' : 'OFFLINE'}</span>`;
+        tdS.innerHTML = `<span class="dispatcher-indicator dispatcher-mesh">P2P MESH</span>`;
+      }
+    }
+
+    // --- Bottom Panels: Robot Fleet Grid UI ---
+    function updateFleetGridUI() {
+      const activeWorld = appState.currentView === 'central' ? appState.worlds.central : appState.worlds.swarm;
+      if (!activeWorld || !activeWorld.robots) return;
+
+      const grid = document.getElementById('fleetGrid');
+      const modeLabel = document.getElementById('activeFleetMode');
+      modeLabel.textContent = `Mode: ${appState.currentView === 'central' ? 'Central' : 'Swarm'}`;
+
+      activeWorld.robots.forEach(r => {
+        let card = document.getElementById(`robot-card-${r.id}`);
+        if (!card) {
+          card = document.createElement('div');
+          card.id = `robot-card-${r.id}`;
+          card.className = 'robot-card';
+          card.onclick = () => {
+            appState.selectedRobot = r.id;
+          };
+          card.onmouseenter = () => {
+            appState.hoveredRobot = r.id;
+          };
+          card.onmouseleave = () => {
+            appState.hoveredRobot = null;
+          };
+          grid.appendChild(card);
+        }
+
+        const isDead = !r.alive || r.state === 'DEAD';
+        const isCarrying = r.state === 'TO_DROP' || (r.order && r.state !== 'IDLE');
+        card.className = `robot-card ${isDead ? 'dead' : ''} ${isCarrying ? 'carrying' : ''}`;
+
+        const battPct = Math.round((r.battery || 0) * 100);
+        let battColor = '#10b981';
+        if (battPct < 30) battColor = '#ef4444';
+        else if (battPct < 60) battColor = '#f59e0b';
+
+        const stateColor = COLORS[r.state] || '#64748b';
+
+        card.innerHTML = `
+          <div class="card-top">
+            <span class="card-robot-id">
+              <span class="card-robot-dot"></span>
+              ${r.id}
+            </span>
+            <span class="state-badge ${r.state}">${r.state}</span>
+          </div>
+
+          <div class="battery-track">
+            <div class="battery-fill" style="width: ${battPct}%; background: ${battColor};"></div>
+          </div>
+
+          <div class="card-details">
+            <span>Batt: <strong style="color:${battColor}">${battPct}%</strong></span>
+            <span>Order: ${r.order ? `<span class="order-id">#${r.order}</span>` : 'Idle'}</span>
+          </div>
+
+          <div class="card-actions">
+            ${r.alive ? `<button class="card-kill-btn" onclick="event.stopPropagation(); sendCmd({cmd: 'kill', robot: '${r.id}'})">Kill</button>` : ''}
+          </div>
+        `;
+      });
+    }
+
+    // --- Controls & Speed Bar Actions ---
+    function setSpeed(speedVal) {
+      appState.speed = speedVal;
+      sendCmd({ cmd: 'speed', x: speedVal });
+      updateSpeedUI(speedVal);
+    }
+
+    function updateSpeedUI(speed) {
+      document.querySelectorAll('.speed-group .btn').forEach(btn => {
+        const val = parseFloat(btn.dataset.speed);
+        btn.classList.toggle('active', Math.abs(val - speed) < 0.1);
+      });
+    }
+
+    function togglePause() {
+      if (appState.paused) {
+        sendCmd({ cmd: 'resume' });
+      } else {
+        sendCmd({ cmd: 'pause' });
+      }
+    }
+
+    function updatePauseUI(isPaused) {
+      const btn = document.getElementById('btnPause');
+      const icon = document.getElementById('pauseIcon');
+      const label = document.getElementById('pauseLabel');
+
+      if (isPaused) {
+        btn.classList.add('paused');
+        icon.textContent = '▶';
+        label.textContent = 'Resume';
+      } else {
+        btn.classList.remove('paused');
+        icon.textContent = '⏸';
+        label.textContent = 'Pause';
+      }
+    }
+
+    function switchView(viewMode) {
+      appState.currentView = viewMode;
+      document.getElementById('tabSwarm').classList.toggle('active', viewMode === 'swarm');
+      document.getElementById('tabCentral').classList.toggle('active', viewMode === 'central');
+      document.getElementById('tabSplit').classList.toggle('active', viewMode === 'split');
+
+      const mainCanvas = document.getElementById('mainCanvas');
+      const splitWrapper = document.getElementById('splitWrapper');
+
+      if (viewMode === 'split') {
+        mainCanvas.style.display = 'none';
+        splitWrapper.style.display = 'flex';
+      } else {
+        mainCanvas.style.display = 'block';
+        splitWrapper.style.display = 'none';
+      }
+
+      updateFleetGridUI();
+    }
+
+    function toggleHelpModal() {
+      const modal = document.getElementById('helpModal');
+      modal.classList.toggle('open');
+    }
+
+    // Keyboard Shortcuts Listener
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePause();
+      } else if (e.key === 'k' || e.key === 'K') {
+        sendCmd({ cmd: 'kill' });
+      } else if (e.key === 'd' || e.key === 'D') {
+        sendCmd({ cmd: 'kill_dispatcher' });
+      } else if (e.key === 'r' || e.key === 'R') {
+        sendCmd({ cmd: 'rush' });
+      } else if (e.key === 'c' || e.key === 'C') {
+        sendCmd({ cmd: 'chaos' });
+      } else if (e.key === 'Backspace') {
+        sendCmd({ cmd: 'reset', seed: 7 });
+      } else if (e.key === 'm' || e.key === 'M') {
+        toggleAudio();
+      } else if (e.key === '1') {
+        switchView('swarm');
+      } else if (e.key === '2') {
+        switchView('central');
+      } else if (e.key === '3') {
+        switchView('split');
+      }
+    });
+
+    // --- High Performance 60FPS Canvas Rendering Engine ---
+    const canvasSingle = document.getElementById('mainCanvas');
+    const canvasCentral = document.getElementById('canvasCentral');
+    const canvasSwarm = document.getElementById('canvasSwarm');
+
+    const ctxSingle = canvasSingle.getContext('2d');
+    const ctxCentral = canvasCentral.getContext('2d');
+    const ctxSwarm = canvasSwarm.getContext('2d');
+
+    function resizeCanvas(canvas, ctx) {
+      if (!canvas || canvas.style.display === 'none' && canvas.parentElement.style.display === 'none') return;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+
+      if (canvas.width !== Math.floor(rect.width * dpr) || canvas.height !== Math.floor(rect.height * dpr)) {
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        ctx.resetTransform();
+        ctx.scale(dpr, dpr);
+      }
+    }
+
+    function renderWorldToCanvas(ctx, canvas, worldData, modeName, now) {
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Compute scaling and centered offsets
+      const padding = 20;
+      const availW = width - padding * 2;
+      const availH = height - padding * 2;
+      const cellSize = Math.min(availW / GRID_W, availH / GRID_H);
+      const gridPixelW = cellSize * GRID_W;
+      const gridPixelH = cellSize * GRID_H;
+      const offsetX = Math.floor((width - gridPixelW) / 2);
+      const offsetY = Math.floor((height - gridPixelH) / 2);
+
+      // Store canvas geometry for mouse hover mapping
+      canvas._geo = { offsetX, offsetY, cellSize };
+
+      // 1. Grid Background & Floor Tiles
+      ctx.fillStyle = '#0d131f';
+      ctx.fillRect(offsetX, offsetY, gridPixelW, gridPixelH);
+
+      // Subtle Grid Lines
+      ctx.strokeStyle = '#162032';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 0; x <= GRID_W; x++) {
+        const px = offsetX + x * cellSize;
+        ctx.moveTo(px, offsetY);
+        ctx.lineTo(px, offsetY + gridPixelH);
+      }
+      for (let y = 0; y <= GRID_H; y++) {
+        const py = offsetY + y * cellSize;
+        ctx.moveTo(offsetX, py);
+        ctx.lineTo(offsetX + gridPixelW, py);
+      }
+      ctx.stroke();
+
+      // 2. Chargers (Lime glow zones)
+      CHARGERS.forEach(([cx, cy]) => {
+        const px = offsetX + cx * cellSize;
+        const py = offsetY + cy * cellSize;
+
+        ctx.fillStyle = 'rgba(163, 230, 53, 0.08)';
+        ctx.fillRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+
+        ctx.strokeStyle = 'rgba(163, 230, 53, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+
+        // Lightning Icon
+        ctx.fillStyle = '#a3e635';
+        ctx.font = `${Math.floor(cellSize * 0.45)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚡', px + cellSize / 2, py + cellSize / 2);
+      });
+
+      // 3. Drop-Off Stations (Emerald docks)
+      DROP_STATIONS.forEach(([dx, dy], idx) => {
+        const px = offsetX + dx * cellSize;
+        const py = offsetY + dy * cellSize;
+
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.1)';
+        ctx.fillRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+
+        ctx.fillStyle = '#10b981';
+        ctx.font = `bold ${Math.floor(cellSize * 0.32)}px var(--font-sans)`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`D${idx + 1}`, px + cellSize / 2, py + cellSize / 2);
+      });
+
+      // 4. Warehouse Shelves (Racks with interior boxes)
+      for (let y = 0; y < GRID_H; y++) {
+        for (let x = 0; x < GRID_W; x++) {
+          if (isShelf(x, y)) {
+            const px = offsetX + x * cellSize;
+            const py = offsetY + y * cellSize;
+
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+
+            // Shelf detail: inner storage bins
+            ctx.fillStyle = '#263449';
+            const binW = (cellSize - 6) / 2;
+            ctx.fillRect(px + 2, py + 3, binW, cellSize - 6);
+            ctx.fillRect(px + 4 + binW, py + 3, binW, cellSize - 6);
+          }
+        }
+      }
+
+      if (!worldData) return;
+
+      // 5. Active Orders: Pickup Markers & Dropoff Target Boxes
+      if (worldData.orders && Array.isArray(worldData.orders)) {
+        worldData.orders.forEach(order => {
+          if (order.status !== 'DELIVERED') {
+            const isQueued = order.status === 'QUEUED';
+            const partsDelivered = Array.isArray(order.parts_delivered) ? order.parts_delivered : [];
+
+            // Draw connecting line between Part A and Part B for dual assembly orders
+            if (order.pickup && order.pickup_b && !partsDelivered.includes('A') && !partsDelivered.includes('B')) {
+              const ax = offsetX + (order.pickup[0] + 0.5) * cellSize;
+              const ay = offsetY + (order.pickup[1] + 0.5) * cellSize;
+              const bx = offsetX + (order.pickup_b[0] + 0.5) * cellSize;
+              const by = offsetY + (order.pickup_b[1] + 0.5) * cellSize;
+              ctx.save();
+              ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+              ctx.lineWidth = 1.5;
+              ctx.setLineDash([4, 4]);
+              ctx.beginPath();
+              ctx.moveTo(ax, ay);
+              ctx.lineTo(bx, by);
+              ctx.stroke();
+              ctx.restore();
+            }
+
+            // Function to render a pickup diamond
+            const renderDiamond = (pos, label, isDelivered, colorHex) => {
+              if (isDelivered || !pos) return;
+              const [ox, oy] = pos;
+              const cx = offsetX + (ox + 0.5) * cellSize;
+              const cy = offsetY + (oy + 0.5) * cellSize;
+              const diamondSize = cellSize * 0.32;
+
+              if (isQueued) {
+                // On a canvas that has not been sized yet cellSize is tiny, so the
+                // pulse can drive the radius negative and ctx.arc() throws.
+                const pulse = Math.sin(now * 0.008) * 3;
+                const ringRadius = Math.max(0, diamondSize + pulse);
+                ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+                ctx.stroke();
+              }
+
+              ctx.save();
+              ctx.translate(cx, cy);
+              ctx.rotate(Math.PI / 4);
+              ctx.fillStyle = isQueued ? colorHex : '#06b6d4';
+              ctx.fillRect(-diamondSize / 2, -diamondSize / 2, diamondSize, diamondSize);
+              ctx.strokeStyle = '#fff';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(-diamondSize / 2, -diamondSize / 2, diamondSize, diamondSize);
+              ctx.restore();
+
+              ctx.fillStyle = '#f8fafc';
+              ctx.font = `bold ${Math.floor(cellSize * 0.24)}px var(--font-mono)`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(label, cx, cy - diamondSize * 0.85);
+            };
+
+            renderDiamond(order.pickup, order.pickup_b ? `o${order.id}-A` : `o${order.id}`, partsDelivered.includes('A'), '#06b6d4');
+            if (order.pickup_b) {
+              renderDiamond(order.pickup_b, `o${order.id}-B`, partsDelivered.includes('B'), '#f59e0b');
+            }
+
+            // Dropoff target marker
+            if (order.dropoff) {
+              const [dx, dy] = order.dropoff;
+              const px = offsetX + dx * cellSize;
+              const py = offsetY + dy * cellSize;
+              ctx.strokeStyle = isQueued ? 'rgba(245, 158, 11, 0.8)' : 'rgba(6, 182, 212, 0.8)';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(px + 4, py + 4, cellSize - 8, cellSize - 8);
+            }
+          }
+        });
+      }
+
+      // 6. Robot Paths Visualization
+      if (worldData.robots && Array.isArray(worldData.robots)) {
+        worldData.robots.forEach(robot => {
+          if (!robot.alive || !robot.path || robot.path.length === 0) return;
+
+          const motion = appState.robotMotion[modeName]?.[robot.id];
+          if (!motion) return;
+
+          // Compute interpolated current position
+          const tickDuration = (appState.tickSeconds / appState.speed) * 1000;
+          const elapsed = now - motion.lastTickTime;
+          const alpha = Math.min(1.0, Math.max(0.0, elapsed / Math.max(16, tickDuration)));
+          const rx = motion.prevX + (motion.currX - motion.prevX) * alpha;
+          const ry = motion.prevY + (motion.currY - motion.prevY) * alpha;
+
+          const startX = offsetX + (rx + 0.5) * cellSize;
+          const startY = offsetY + (ry + 0.5) * cellSize;
+
+          ctx.save();
+          ctx.strokeStyle = COLORS[robot.state] || '#06b6d4';
+          ctx.globalAlpha = 0.45;
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([5, 4]);
+
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+
+          robot.path.forEach(([px, py]) => {
+            const destX = offsetX + (px + 0.5) * cellSize;
+            const destY = offsetY + (py + 0.5) * cellSize;
+            ctx.lineTo(destX, destY);
+          });
+
+          ctx.stroke();
+          ctx.restore();
+
+          // Target point reticle
+          const target = robot.target || (robot.path.length > 0 ? robot.path[robot.path.length - 1] : null);
+          if (target) {
+            const tx = offsetX + (target[0] + 0.5) * cellSize;
+            const ty = offsetY + (target[1] + 0.5) * cellSize;
+            ctx.strokeStyle = COLORS[robot.state] || '#06b6d4';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(tx, ty, cellSize * 0.22, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        });
+      }
+
+      // 7. Robots Rendering (Circles, Battery Rings, Package Badges, Death Crosses)
+      if (worldData.robots && Array.isArray(worldData.robots)) {
+        worldData.robots.forEach(robot => {
+          const motion = appState.robotMotion[modeName]?.[robot.id];
+          let rx = robot.x;
+          let ry = robot.y;
+
+          if (motion) {
+            const tickDuration = (appState.tickSeconds / appState.speed) * 1000;
+            const elapsed = now - motion.lastTickTime;
+            const alpha = Math.min(1.0, Math.max(0.0, elapsed / Math.max(16, tickDuration)));
+            rx = motion.prevX + (motion.currX - motion.prevX) * alpha;
+            ry = motion.prevY + (motion.currY - motion.prevY) * alpha;
+          }
+
+          const cx = offsetX + (rx + 0.5) * cellSize;
+          const cy = offsetY + (ry + 0.5) * cellSize;
+          const robotRadius = cellSize * 0.36;
+          const isDead = !robot.alive || robot.state === 'DEAD';
+          const isCarrying = robot.state === 'TO_DROP' || (robot.order && robot.state !== 'IDLE');
+          const isSelected = appState.selectedRobot === robot.id;
+          const isHovered = appState.hoveredRobot === robot.id;
+
+          ctx.save();
+
+          // Selection / Hover Reticle
+          if (isSelected || isHovered) {
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, robotRadius + 7, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // Carrying Glow Aura
+          if (isCarrying && !isDead) {
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = 12;
+          } else if (!isDead) {
+            ctx.shadowColor = COLORS[robot.state] || '#06b6d4';
+            ctx.shadowBlur = 6;
+          }
+
+          // Battery Outer Arc Ring
+          const battery = Math.max(0, Math.min(1, robot.battery !== undefined ? robot.battery : 1.0));
+          const ringRadius = robotRadius + 3.5;
+          ctx.beginPath();
+          ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          // Active Battery Arc
+          let battColor = '#10b981';
+          if (battery < 0.3) battColor = '#ef4444';
+          else if (battery < 0.6) battColor = '#f59e0b';
+
+          ctx.beginPath();
+          ctx.arc(cx, cy, ringRadius, -Math.PI / 2, -Math.PI / 2 + battery * Math.PI * 2);
+          ctx.strokeStyle = isDead ? '#64748b' : battColor;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          // Robot Body Circle
+          ctx.beginPath();
+          ctx.arc(cx, cy, robotRadius, 0, Math.PI * 2);
+          ctx.fillStyle = isDead ? '#2b1b22' : (COLORS[robot.state] || '#64748b');
+          ctx.fill();
+
+          ctx.strokeStyle = isDead ? '#ef4444' : '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Robot Number Label (Inside Body)
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = isDead ? '#ef4444' : '#ffffff';
+          ctx.font = `bold ${Math.floor(robotRadius * 0.9)}px var(--font-sans)`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(robot.id, cx, cy);
+
+          // Package Box Icon for carrying orders
+          if (isCarrying && !isDead) {
+            const boxX = cx + robotRadius * 0.6;
+            const boxY = cy - robotRadius * 0.9;
+            ctx.fillStyle = robot.part === 'B' ? '#f59e0b' : '#06b6d4';
+            ctx.fillRect(boxX - 5, boxY - 5, 10, 10);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(boxX - 5, boxY - 5, 10, 10);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 7px var(--font-mono)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(robot.part || 'A', boxX, boxY);
+          }
+
+          // Dead Robot: Red Cross 'X' Overlay
+          if (isDead) {
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            const arm = robotRadius * 0.8;
+            ctx.moveTo(cx - arm, cy - arm);
+            ctx.lineTo(cx + arm, cy + arm);
+            ctx.moveTo(cx + arm, cy - arm);
+            ctx.lineTo(cx - arm, cy + arm);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        });
+      }
+    }
+
+    // --- Main 60FPS Animation Loop ---
+    function animationLoop(now) {
+      // One drawing error must not kill the loop: the next frame is always queued.
+      try {
+        if (appState.currentView === 'split') {
+          resizeCanvas(canvasCentral, ctxCentral);
+          resizeCanvas(canvasSwarm, ctxSwarm);
+          renderWorldToCanvas(ctxCentral, canvasCentral, appState.worlds.central, 'central', now);
+          renderWorldToCanvas(ctxSwarm, canvasSwarm, appState.worlds.swarm, 'swarm', now);
+        } else {
+          resizeCanvas(canvasSingle, ctxSingle);
+          const activeMode = appState.currentView === 'central' ? 'central' : 'swarm';
+          const activeData = appState.worlds[activeMode];
+          renderWorldToCanvas(ctxSingle, canvasSingle, activeData, activeMode, now);
+        }
+      } catch (error) {
+        console.error('Render frame failed:', error);
+      } finally {
+        requestAnimationFrame(animationLoop);
+      }
+    }
+    requestAnimationFrame(animationLoop);
+
+    // --- Interactive Mouse Hover HUD Tooltip ---
+    const viewport = document.getElementById('viewport');
+    const tooltip = document.getElementById('robotTooltip');
+
+    viewport.addEventListener('mousemove', (e) => {
+      const rect = viewport.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const activeCanvas = appState.currentView === 'split' ? canvasSwarm : canvasSingle;
+      const geo = activeCanvas._geo;
+      if (!geo) return;
+
+      const activeData = appState.currentView === 'central' ? appState.worlds.central : appState.worlds.swarm;
+      if (!activeData || !activeData.robots) return;
+
+      let found = null;
+      activeData.robots.forEach(r => {
+        const cx = geo.offsetX + (r.x + 0.5) * geo.cellSize;
+        const cy = geo.offsetY + (r.y + 0.5) * geo.cellSize;
+        const dist = Math.hypot(mouseX - cx, mouseY - cy);
+        if (dist <= geo.cellSize * 0.5) {
+          found = r;
+        }
+      });
+
+      if (found) {
+        appState.hoveredRobot = found.id;
+        tooltip.style.display = 'block';
+        tooltip.style.left = `${mouseX}px`;
+        tooltip.style.top = `${mouseY}px`;
+
+        document.getElementById('ttId').textContent = `Robot ${found.id}`;
+        const stateBadge = document.getElementById('ttState');
+        stateBadge.textContent = found.state;
+        stateBadge.className = `state-badge ${found.state}`;
+
+        document.getElementById('ttPos').textContent = `(${found.x}, ${found.y})`;
+        document.getElementById('ttBattery').textContent = `${Math.round(found.battery * 100)}%`;
+        document.getElementById('ttOrder').textContent = found.order ? `#${found.order}` : 'None';
+        document.getElementById('ttPath').textContent = found.path ? found.path.length : 0;
+      } else {
+        appState.hoveredRobot = null;
+        tooltip.style.display = 'none';
+      }
+    });
+
+    viewport.addEventListener('mouseleave', () => {
+      appState.hoveredRobot = null;
+      tooltip.style.display = 'none';
+    });
+
+    // Click canvas to select or kill robot
+    viewport.addEventListener('click', (e) => {
+      if (appState.hoveredRobot) {
+        appState.selectedRobot = appState.hoveredRobot;
+      }
+    });
+
+    // --- Demo Fallback Mock Simulation Engine ---
+    // If the Python server is not yet running, this ensures the dashboard opens with an active, stunning simulation!
+    let mockInterval = null;
+    let mockSeed = 7;
+
+    function startMockSimulation() {
+      if (mockInterval) return;
+
+      // Seed mock robots
+      const makeRobots = () => [
+        { id: 'r1', x: 5, y: 2, state: 'TO_DROP', battery: 0.85, order: 12, alive: true, path: [[6,2],[7,2],[8,2],[9,2],[10,2]], target: [22,5], nextOrder: null },
+        { id: 'r2', x: 12, y: 5, state: 'TO_PICK', battery: 0.92, order: 14, alive: true, path: [[13,5],[14,5],[15,5]], target: [15,5], nextOrder: null },
+        { id: 'r3', x: 0, y: 2, state: 'CHARGING', battery: 0.45, order: null, alive: true, path: [], target: null, nextOrder: null },
+        { id: 'r4', x: 8, y: 7, state: 'IDLE', battery: 0.76, order: null, alive: true, path: [], target: null, nextOrder: null },
+        { id: 'r5', x: 18, y: 10, state: 'TO_DROP', battery: 0.68, order: 9, alive: true, path: [[19,10],[20,10],[21,10],[22,11]], target: [22,11], nextOrder: null },
+        { id: 'r6', x: 3, y: 6, state: 'DEAD', battery: 0.12, order: null, alive: false, path: [], target: null, nextOrder: null },
+        { id: 'r7', x: 1, y: 8, state: 'CHARGING', battery: 0.88, order: null, alive: true, path: [], target: null, nextOrder: null },
+        { id: 'r8', x: 14, y: 2, state: 'IDLE', battery: 0.70, order: null, alive: true, path: [], target: null, nextOrder: null }
+      ];
+
+      const mockData = {
+        tick: 140,
+        paused: false,
+        speed: 1.0,
+        central: {
+          tick: 140, mode: 'central', grid: [GRID_W, GRID_H], dispatcher: 'up',
+          robots: makeRobots(),
+          orders: [
+            { id: 12, status: 'PICKED', pickup: [5, 2], dropoff: [22, 5], priority: 0, robot: 'r1' },
+            { id: 14, status: 'ASSIGNED', pickup: [15, 5], dropoff: [22, 2], priority: 1, robot: 'r2' }
+          ],
+          metrics: { delivered: 28, avg_order_time_s: 14.8, recovery_s: [8.5], backlog: 4, oldest_wait_s: 7.2, distance: 820, idle_ticks: 120 },
+          feed: [
+            { t: 'ORDER_POSTED', order: 12, pickup: [5,2], dropoff: [22,5], priority: 0, tick: 135 },
+            { t: 'ASSIGN', order: 12, robot: 'r1', tick: 136 }
+          ]
+        },
+        swarm: {
+          tick: 140, mode: 'swarm', grid: [GRID_W, GRID_H], dispatcher: 'none',
+          robots: makeRobots(),
+          orders: [
+            { id: 12, status: 'PICKED', pickup: [5, 2], dropoff: [22, 5], priority: 0, robot: 'r1' },
+            { id: 14, status: 'ASSIGNED', pickup: [15, 5], dropoff: [22, 2], priority: 1, robot: 'r2' }
+          ],
+          metrics: { delivered: 34, avg_order_time_s: 11.2, recovery_s: [1.4], backlog: 2, oldest_wait_s: 3.5, distance: 910, idle_ticks: 64 },
+          feed: [
+            { t: 'ORDER_POSTED', order: 12, pickup: [5,2], dropoff: [22,5], priority: 0, tick: 135 },
+            { t: 'BID', order: 12, robot: 'r1', cost: 12.4, tick: 136 },
+            { t: 'AWARD', order: 12, robot: 'r1', cost: 12.4, tick: 137 },
+            { t: 'ROBOT_CHAT', robot: 'r1', text: 'Secured order #12, en route to station D2', tick: 138 }
+          ]
+        }
+      };
+
+      // Mock Step Generator
+      mockInterval = setInterval(() => {
+        if (appState.paused) return;
+
+        mockData.tick += 1;
+        mockData.central.tick = mockData.tick;
+        mockData.swarm.tick = mockData.tick;
+
+        // Animate robot coordinates gently
+        ['central', 'swarm'].forEach(m => {
+          mockData[m].robots.forEach(r => {
+            if (r.alive && r.path && r.path.length > 0) {
+              const next = r.path.shift();
+              r.x = next[0];
+              r.y = next[1];
+              if (r.path.length === 0) {
+                if (r.state === 'TO_DROP') {
+                  r.state = 'IDLE';
+                  r.order = null;
+                  mockData[m].feed.push({ t: 'DELIVERED', order: 12, robot: r.id, tick: mockData.tick });
+                  mockData[m].metrics.delivered += 1;
+                }
+              }
+            }
+          });
+        });
+
+        // Inject simulated orders occasionally
+        if (mockData.tick % 35 === 0) {
+          const newId = 15 + Math.floor(mockData.tick / 35);
+          const feedItem = { t: 'ORDER_POSTED', order: newId, pickup: [6, 7], dropoff: [22, 8], priority: 0, tick: mockData.tick };
+          mockData.swarm.feed.push(feedItem);
+          mockData.central.feed.push(feedItem);
+        }
+
+        handleServerMessage({ type: 'state', ...mockData });
+      }, 200);
+    }
+
+    function stopMockSimulation() {
+      if (mockInterval) {
+        clearInterval(mockInterval);
+        mockInterval = null;
+      }
+    }
+
+    function handleMockCommand(cmdObj) {
+      if (cmdObj.cmd === 'pause') {
+        appState.paused = true;
+        updatePauseUI(true);
+      } else if (cmdObj.cmd === 'resume') {
+        appState.paused = false;
+        updatePauseUI(false);
+      } else if (cmdObj.cmd === 'speed') {
+        appState.speed = cmdObj.x || 1.0;
+        updateSpeedUI(appState.speed);
+      } else if (cmdObj.cmd === 'kill') {
+        showBanner(`Robot r1 decommissioned [Simulation Preview]`, '💀');
+        playSound('fault');
+      } else if (cmdObj.cmd === 'kill_dispatcher') {
+        showBanner(`Central Dispatcher knocked offline! [Simulation Preview]`, '⚡');
+        playSound('fault');
+      } else if (cmdObj.cmd === 'chaos') {
+        showBanner(`CHAOS injected! [Simulation Preview]`, '🔥');
+        playSound('fault');
+      } else if (cmdObj.cmd === 'rush') {
+        showBanner(`Rush order injected! [Simulation Preview]`, '🚨');
+        playSound('order');
+      }
+    }
+
+    // Helper: Escape HTML strings
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // --- Initialize ---
+    window.addEventListener('DOMContentLoaded', () => {
+      // Start connection attempt to Python backend
+      connectWebSocket();
+    });
+  </script>
+</body>
+</html>

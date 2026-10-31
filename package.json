@@ -1,0 +1,30 @@
+{
+  "name": "hackathon-agents",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "demo": "tsx src/demo.ts",
+    "server": "python python_files/server.py --agent-controlled",
+    "server:standalone": "python python_files/server.py",
+    "bridge": "tsx src/swarm-bridge.ts",
+    "bridge:agents": "tsx src/swarm-bridge.ts --agents",
+    "bridge:dry": "tsx src/swarm-bridge.ts --agents --dry",
+    "bridge:llm": "tsx src/swarm-bridge.ts --agents",
+    "typecheck": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@agent-relay/sdk": "^14.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

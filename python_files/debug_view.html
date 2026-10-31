@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SWARM debug view</title>
+<style>
+  body { background:#0f1218; color:#d8dee9; font:13px/1.4 system-ui, sans-serif; margin:12px; }
+  h2 { margin:0 0 4px; font-size:15px; }
+  #bar button { background:#232a36; color:#d8dee9; border:1px solid #3a4456; padding:6px 10px; margin:0 4px 8px 0; border-radius:5px; cursor:pointer; }
+  #bar button:hover { background:#2e384a; }
+  #bar .danger { border-color:#e63946; }
+  #panels { display:flex; gap:16px; flex-wrap:wrap; }
+  .panel { flex:1 1 540px; max-width:560px; }
+  canvas { background:#151a23; border:1px solid #2a3342; width:100%; display:block; }
+  .metrics { margin:6px 0; font-variant-numeric:tabular-nums; }
+  .badge { padding:1px 7px; border-radius:9px; font-size:12px; }
+  .up { background:#1f6f43; } .down { background:#b3261e; } .none { background:#3a4456; }
+  .feed { white-space:pre; height:190px; overflow:hidden; background:#151a23; border:1px solid #2a3342; padding:6px; font:12px/1.35 ui-monospace, monospace; }
+  #status { margin-left:8px; color:#8895a8; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <button class="danger" onclick="cmd('kill')">Kill robot</button>
+  <button class="danger" onclick="cmd('kill_dispatcher')">Kill dispatcher</button>
+  <button onclick="cmd('rush')">Rush order</button>
+  <button class="danger" onclick="cmd('chaos')">CHAOS</button>
+  <button onclick="cmd('pause')">Pause</button>
+  <button onclick="cmd('resume')">Resume</button>
+  <button onclick="cmd('speed',{x:1})">1x</button>
+  <button onclick="cmd('speed',{x:3})">3x</button>
+  <button onclick="cmd('reset',{seed:7})">Reset</button>
+  <span id="status">connecting…</span>
+</div>
+<div id="panels">
+  <div class="panel"><h2>Baseline: central dispatcher</h2><div class="metrics" id="m-central"></div><canvas id="c-central"></canvas><div class="feed" id="f-central"></div></div>
+  <div class="panel"><h2>SWARM: robots negotiate</h2><div class="metrics" id="m-swarm"></div><canvas id="c-swarm"></canvas><div class="feed" id="f-swarm"></div></div>
+</div>
+<script>
+const WS_URL = "ws://localhost:8765";
+const CELL = 24;
+const COLORS = {IDLE:"#9aa4b2", TO_PICK:"#4cc9f0", TO_DROP:"#f4a261", TO_CHARGE:"#b5e48c", CHARGING:"#80ed99", DEAD:"#e63946"};
+const isShelf = (x, y) => [3,4,8,9].includes(y) && x >= 3 && x <= 20 && (x - 3) % 4 !== 3;
+let ws;
+
+function cmd(name, extra) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(Object.assign({cmd: name}, extra || {})));
+}
+
+function connect() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => { document.getElementById("status").textContent = "connected"; };
+  ws.onclose = () => { document.getElementById("status").textContent = "disconnected, retrying…"; setTimeout(connect, 1000); };
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.type === "state") { render("central", m.central); render("swarm", m.swarm); }
+  };
+}
+
+function fmt(m) {
+  const bits = [String(m.tick).padStart(4), m.t];
+  if (m.robot) bits.push(m.robot);
+  if (m.lastRobot) bits.push("(was " + m.lastRobot + ")");
+  if (m.order !== undefined) bits.push("o" + m.order);
+  if (m.cost !== undefined) bits.push("cost " + m.cost);
+  if (m.target) bits.push(m.target);
+  return bits.join(" ");
+}
+
+function render(mode, s) {
+  const [gw, gh] = s.grid;
+  const cv = document.getElementById("c-" + mode);
+  cv.width = gw * CELL; cv.height = gh * CELL;
+  const g = cv.getContext("2d");
+  g.clearRect(0, 0, cv.width, cv.height);
+  for (let x = 0; x < gw; x++) for (let y = 0; y < gh; y++) {
+    if (isShelf(x, y)) { g.fillStyle = "#2f3a4d"; g.fillRect(x*CELL+1, y*CELL+1, CELL-2, CELL-2); }
+  }
+  g.fillStyle = "#2a9d8f";                                    // drop-off stations
+  [2,5,8,11].forEach(y => g.fillRect(22*CELL+3, y*CELL+3, CELL-6, CELL-6));
+  g.fillStyle = "#3d405b";                                    // chargers
+  [0,1].forEach(x => [2,5,8,11].forEach(y => g.fillRect(x*CELL+5, y*CELL+5, CELL-10, CELL-10)));
+  s.orders.forEach(o => {                                      // waiting / assigned pickups
+    if (o.status === "PICKED") return;
+    g.fillStyle = o.priority ? "#ff4d6d" : (o.status === "QUEUED" ? "#ffd166" : "#7aa2f7");
+    g.fillRect(o.pickup[0]*CELL+8, o.pickup[1]*CELL+8, CELL-16, CELL-16);
+  });
+  s.robots.forEach(r => {
+    const cx = r.x*CELL + CELL/2, cy = r.y*CELL + CELL/2;
+    g.fillStyle = COLORS[r.state] || "#fff";
+    g.beginPath(); g.arc(cx, cy, CELL*0.38, 0, 6.283); g.fill();
+    if (r.state === "TO_DROP") { g.fillStyle = "#fff"; g.fillRect(cx-3, cy-3, 6, 6); }
+    if (!r.alive) {
+      g.strokeStyle = "#fff"; g.lineWidth = 2; g.beginPath();
+      g.moveTo(cx-5, cy-5); g.lineTo(cx+5, cy+5); g.moveTo(cx+5, cy-5); g.lineTo(cx-5, cy+5); g.stroke();
+    }
+    g.fillStyle = "#0f1218"; g.font = "9px sans-serif"; g.textAlign = "center";
+    if (r.alive) g.fillText(r.id.slice(1), cx, cy + 3);
+  });
+  const m = s.metrics;
+  const rec = m.recovery_s.length ? m.recovery_s.join(", ") + " s" : "n/a";
+  document.getElementById("m-" + mode).innerHTML =
+    `<span class="badge ${s.dispatcher}">dispatcher: ${s.dispatcher}</span> ` +
+    `delivered <b>${m.delivered}</b> · avg order <b>${m.avg_order_time_s}s</b> · backlog <b>${m.backlog}</b> · ` +
+    `oldest wait <b>${m.oldest_wait_s}s</b> · recovery <b>${rec}</b>`;
+  document.getElementById("f-" + mode).textContent = s.feed.slice().reverse().map(fmt).join("\n");
+}
+connect();
+</script>
+</body>
+</html>
